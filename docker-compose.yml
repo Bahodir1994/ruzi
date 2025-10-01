@@ -1,4 +1,5 @@
 version: '3.8'
+
 services:
   postgres:
     image: postgres:16
@@ -22,5 +23,45 @@ services:
       - "5440:80"
     depends_on:
       - postgres
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    container_name: minio
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - e_mnt_minio:/data
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: admin123
+    command: server --console-address ":9001" /data
+
+  mc-init:
+    image: minio/mc
+    container_name: mc-init
+    depends_on:
+      - minio
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      sleep 10 &&
+      mc alias set localminio http://minio:9000 admin admin123 &&
+      mc mb localminio/images || true &&
+      mc policy set public localminio/images
+      "
+    restart: "no"
+
 volumes:
   postgres_data:
+  pgadmin_data:
+  e_mnt_minio:
+    driver: local
+    driver_opts:
+      type: none
+      device: E:/mnt
+      o: bind
+  redis_data:
